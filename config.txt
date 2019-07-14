@@ -1,0 +1,6 @@
+class : com.greekk.Manager
+name : Alex
+surname : Grich
+height : 175
+weight : 100
+position : middle
