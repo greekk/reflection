@@ -96,7 +96,7 @@ public class MyReflectionUtilz {
     //check whether field have value
     private static boolean checkField(String getterName) throws InvocationTargetException, IllegalAccessException {
         Method getter = findMethod(getters, getterName);
-        Object result = getter.invoke(obj);//trouble!!!!
+        Object result = getter.invoke(obj);//big trouble!!!!
         if(Objects.nonNull(result)){
             if((float)result == 0.0)
                 return false;
