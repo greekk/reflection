@@ -56,13 +56,13 @@ public class MyReflectionUtilz {
         for (Map.Entry<String, String> entry : config.entrySet()) {
             String fieldName = entry.getKey();
             if(fieldName == "class")
-                return;
+                continue;
             String value = entry.getValue();
             try{
                 setValueToField(fieldName, value);
             }
             catch(Exception ex){
-                System.out.println(ex.getMessage());
+                ex.printStackTrace();
                 return;
             }
         }
@@ -94,11 +94,14 @@ public class MyReflectionUtilz {
         return verb + capitalizeFieldName(fieldName);
     }
     //check whether field have value
-    private static boolean checkFieldValue(String getterName) throws InvocationTargetException, IllegalAccessException {
+    private static boolean checkField(String getterName) throws InvocationTargetException, IllegalAccessException {
         Method getter = findMethod(getters, getterName);
-        Object result = getter.invoke(obj);
-        if(Objects.nonNull(result))
+        Object result = getter.invoke(obj);//trouble!!!!
+        if(Objects.nonNull(result)){
+            if((float)result == 0.0)
+                return false;
             return true;
+        }
         return false;
     }
 
@@ -115,9 +118,9 @@ public class MyReflectionUtilz {
         String setterName = makeMethodName("set" , fieldName);
         String getterName = makeMethodName("get" , fieldName);
 
-        if(checkFieldValue(getterName))
-            return;
         Field field = findField(fieldName);
+        if(checkField(getterName))
+            return;
 
         if(Objects.nonNull(field)){
             Object fieldType = field.getType();
