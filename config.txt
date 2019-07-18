@@ -1,6 +1,7 @@
 class : com.greekk.Manager
 name : Alex
 surname : Grich
+id : tyx36rew
 height : 175
 weight : 100
 position : middle

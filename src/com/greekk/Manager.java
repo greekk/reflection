@@ -1,7 +1,10 @@
 package com.greekk;
 
+import java.util.UUID;
+
 public class Manager extends Person{
     private String position;
+    private UUID id;
 
     public Manager(){
     }
@@ -10,6 +13,13 @@ public class Manager extends Person{
         this.position = position;
     }
 
+    public UUID getId() {
+        return id;
+    }
+
+    public void setId(UUID id) {
+        this.id = id;
+    }
 
     public String getPosition(){
         return this.position.toString();

@@ -5,24 +5,14 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class MyReflectionUtilz {
 
-    private static Map<String, String> config;
-    public static Class<?> clazz;
-    private static List<Field> fields;
-    private static List<Method> setters;
-    private static List<Method> getters;
-    private static Constructor constructor;
-    private static Object obj;
 
-
-    public static void init(String configFile){
+    public static void init(String configFile, Map<?,?> config, Class<?> clazz, List<Field> fields, List<Method> setters,
+                            List<Method> getters, Constructor constructor, ){
         try {
             config = FileOperations.readConfig(configFile);
             clazz = Class.forName(config.get("class"));
@@ -67,7 +57,7 @@ public class MyReflectionUtilz {
             }
         }
     }
-
+    //takes all fields from the class
     private static List<Field> getFields(){
         List<Field> fields = new ArrayList();
         fields.addAll(List.of(clazz.getDeclaredFields()));
@@ -75,6 +65,7 @@ public class MyReflectionUtilz {
         return fields;
     }
 
+    //takes all methods from the class
     private static List<Method> getMethods(){
         List<Method> methods = new ArrayList<>();
         methods.addAll(List.of(clazz.getDeclaredMethods()));
@@ -82,6 +73,7 @@ public class MyReflectionUtilz {
         return methods;
     }
 
+    //makes filtering of methods by the giving filter
     public static List<Method> getFilteredMethods( String filter){
         List<Method> methods = getMethods();
         return methods.stream().
@@ -93,14 +85,23 @@ public class MyReflectionUtilz {
     private static String makeMethodName(String verb, String fieldName ){
         return verb + capitalizeFieldName(fieldName);
     }
+
     //check whether field have value
-    private static boolean checkField(String getterName) throws InvocationTargetException, IllegalAccessException {
+    private static boolean checkFieldOnValue(String getterName) throws InvocationTargetException, IllegalAccessException {
         Method getter = findMethod(getters, getterName);
         Object result = getter.invoke(obj);//big trouble!!!!
-        if(Objects.nonNull(result)){
-            if((float)result == 0.0)
-                return false;
-            return true;
+            if(Objects.nonNull(result)){
+                try{
+                    if((float)result == 0f)
+                        return false;
+                    if((long)result == 0L)
+                        return false;
+                    if((double)result == 0d)
+                        return false;
+                }
+                catch(Exception e){
+                    return true;
+                }
         }
         return false;
     }
@@ -115,25 +116,29 @@ public class MyReflectionUtilz {
     }
 
     private static void setValueToField( String fieldName, String value) throws Exception {
+        Object innerValue = value;
         String setterName = makeMethodName("set" , fieldName);
         String getterName = makeMethodName("get" , fieldName);
-
+        Method setter = findMethod(setters, setterName);
         Field field = findField(fieldName);
-        if(checkField(getterName))
-            return;
 
         if(Objects.nonNull(field)){
-            Object fieldType = field.getType();
-            if (!field.isAccessible()){
-                Method setter = findMethod(setters, setterName);
-                if(Objects.nonNull(setter)){
-                    if(fieldType == float.class){
-                        Float val = Float.parseFloat(value);
-                        setter.invoke(obj, val);
-                    }
-                    else
-                        setter.invoke(obj, value);
-                }
+            if(checkFieldOnValue(getterName))
+                return;
+            Class<?> fieldType = field.getType();
+            if(fieldType == int.class)
+                innerValue = Integer.parseInt(value);
+            if(fieldType == float.class)
+                innerValue = Float.parseFloat(value);
+            if(fieldType == double.class)
+                innerValue = Double.parseDouble(value);
+            if(fieldType == long.class)
+                innerValue = Long.parseLong(value);
+            if(fieldType == UUID.class){
+                innerValue = UUID.nameUUIDFromBytes(value.getBytes());
+            }
+            if (!field.isAccessible() && Objects.nonNull(setter)){
+                setter.invoke(obj, innerValue);
             }
             else
                 field.set(obj, value);
