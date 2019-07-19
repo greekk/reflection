@@ -11,45 +11,72 @@ import java.util.stream.Collectors;
 public class MyReflectionUtilz {
 
 
-    public static void init(String configFile, Map<?,?> config, Class<?> clazz, List<Field> fields, List<Method> setters,
-                            List<Method> getters, Constructor constructor, ){
+    public static Map<String,String> makeConfig(String path){
+        Map<String, String> config = null;
+        try{
+            config = FileOperations.readConfig(path);
+        }
+        catch (IOException iox){
+            iox.printStackTrace();
+        }
+        return config;
+    }
+
+    public static Class<?> getClazz( Map<String,String> config){
+/*
+        Class<?> clazz, List<Field> fields, List<Method> setters,
+                List<Method> getters, Constructor constructor, Object obj
+*/
+        Class<?> clazz = null;
         try {
-            config = FileOperations.readConfig(configFile);
             clazz = Class.forName(config.get("class"));
-            fields = getFields();
-            setters = getFilteredMethods("set");
-            getters = getFilteredMethods("get");
-            constructor = clazz.getDeclaredConstructor(String.class);
-
-            try{
-                obj = constructor.newInstance("middle");
-            }
-            catch(Exception ex){
-                System.out.println("Instance was not created!");
-                return;
-            }
-            fillObject();
-
         }
         catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
-        catch (IOException iox){
-            System.out.println("File not found!");
-        }
-        catch(NoSuchMethodException nsmex){
-            System.out.println("No such method!");
-        }
+        return clazz;
+//
+//        catch(InstantiationException iex){
+//            System.out.println("Instance was not created!");
+//            return;
+//        }
+//
     }
 
-    private static void fillObject(){
+    public static Constructor<?> makeConstructor(Class<?> clazz, Class<?>... args){
+        Constructor<?> constructor = null;
+        try {
+            constructor = clazz.getDeclaredConstructor(args);
+        }
+        catch(NoSuchMethodException nsmex){
+            nsmex.printStackTrace();
+        }
+        return constructor;
+    }
+
+    public static Object makeObject(Constructor<?> constr, ){
+        Constructor<?> constructor = null;
+        try{
+            constructor = constr.newInstance("middle");
+        }
+        catch (IllegalAccessException iaex){
+            iaex.printStackTrace();
+        }
+        catch (InvocationTargetException itex){
+            itex.printStackTrace();
+        }
+        return constructor;
+    }
+
+    public static void fillObject(Map<String, String> config, List<Field> fields,
+                                  List<Method> setters, List<Method> getters,Object obj){
         for (Map.Entry<String, String> entry : config.entrySet()) {
             String fieldName = entry.getKey();
             if(fieldName == "class")
                 continue;
             String value = entry.getValue();
             try{
-                setValueToField(fieldName, value);
+                setValueToField(fieldName, fields, value, setters, getters, obj);
             }
             catch(Exception ex){
                 ex.printStackTrace();
@@ -58,7 +85,7 @@ public class MyReflectionUtilz {
         }
     }
     //takes all fields from the class
-    private static List<Field> getFields(){
+    public static List<Field> getFields(Class<?> clazz){
         List<Field> fields = new ArrayList();
         fields.addAll(List.of(clazz.getDeclaredFields()));
         fields.addAll(List.of(clazz.getSuperclass().getDeclaredFields()));
@@ -66,7 +93,7 @@ public class MyReflectionUtilz {
     }
 
     //takes all methods from the class
-    private static List<Method> getMethods(){
+    public static List<Method> getMethods(Class<?> clazz){
         List<Method> methods = new ArrayList<>();
         methods.addAll(List.of(clazz.getDeclaredMethods()));
         methods.addAll(List.of(clazz.getSuperclass().getDeclaredMethods()));
@@ -74,8 +101,8 @@ public class MyReflectionUtilz {
     }
 
     //makes filtering of methods by the giving filter
-    public static List<Method> getFilteredMethods( String filter){
-        List<Method> methods = getMethods();
+    public static List<Method> getFilteredMethods( String filter, Class<?> clazz){
+        List<Method> methods = getMethods(clazz);
         return methods.stream().
                 filter(setter -> setter.getName().contains(filter))
                 .collect(Collectors.toList());
@@ -87,7 +114,9 @@ public class MyReflectionUtilz {
     }
 
     //check whether field have value
-    private static boolean checkFieldOnValue(String getterName) throws InvocationTargetException, IllegalAccessException {
+    private static boolean checkFieldOnValue(String getterName, List<Method> getters, Object obj)
+            throws InvocationTargetException, IllegalAccessException
+    {
         Method getter = findMethod(getters, getterName);
         Object result = getter.invoke(obj);//big trouble!!!!
             if(Objects.nonNull(result)){
@@ -115,15 +144,15 @@ public class MyReflectionUtilz {
         return null;
     }
 
-    private static void setValueToField( String fieldName, String value) throws Exception {
+    private static void setValueToField( String fieldName, List<Field> fields, String value, List<Method> setters, List<Method> getters, Object obj) throws Exception {
         Object innerValue = value;
         String setterName = makeMethodName("set" , fieldName);
         String getterName = makeMethodName("get" , fieldName);
         Method setter = findMethod(setters, setterName);
-        Field field = findField(fieldName);
+        Field field = findField(fieldName, fields);
 
         if(Objects.nonNull(field)){
-            if(checkFieldOnValue(getterName))
+            if(checkFieldOnValue(getterName, getters, obj))
                 return;
             Class<?> fieldType = field.getType();
             if(fieldType == int.class)
@@ -145,7 +174,7 @@ public class MyReflectionUtilz {
         }
     }
 
-    public static Field findField(String fieldName){
+    public static Field findField(String fieldName, List<Field> fields){
         for (Field field : fields) {
             if(field.getName().equals(fieldName))
                 return field;
